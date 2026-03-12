@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Táctica - Contratista Gubernamental</title>
+    <style>
+        :root {
+            --bg-color: #050d05; 
+            --panel-bg: #0a140a;
+            --primary-color: #33ff33; 
+            --primary-dim: #1a801a;
+            --danger-color: #ff3333;
+            --success-color: #33ff33; 
+            --text-main: #33ff33;
+            --border-color: #33ff33;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-shadow: 0 0 5px rgba(51, 255, 51, 0.6); 
+            position: relative;
+        }
+
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background-color: transparent;
+            border: 2px solid var(--border-color);
+            box-shadow: 0 0 15px rgba(51, 255, 51, 0.2), inset 0 0 15px rgba(51, 255, 51, 0.1);
+            overflow: hidden;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header {
+            background-color: var(--primary-dim);
+            color: #000;
+            padding: 10px 20px;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-shadow: none;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .meter-container {
+            width: 150px;
+            height: 18px;
+            background-color: #000;
+            border: 1px solid var(--border-color);
+            position: relative;
+            padding: 2px;
+            box-sizing: border-box;
+        }
+
+        .meter-fill {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 100%;
+            transition: width 0.3s steps(10), background-color 0.3s; 
+        }
+
+        .content {
+            padding: 30px;
+            background-color: rgba(10, 20, 10, 0.8);
+        }
+
+        .screen { display: none; }
+        .screen.active {
+            display: block;
+            animation: terminalBoot 0.3s ease-out;
+        }
+
+        @keyframes terminalBoot {
+            0% { opacity: 0; transform: scaleY(0.95); filter: brightness(2); }
+            100% { opacity: 1; transform: scaleY(1); filter: brightness(1); }
+        }
+
+        h2 {
+            color: var(--primary-color);
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        p { line-height: 1.6; }
+
+        .cursor::after {
+            content: "█";
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        .input-group { margin: 20px 0; }
+
+        input[type="text"] {
+            width: 100%; padding: 12px; background-color: #000;
+            border: 1px solid var(--primary-color); color: var(--primary-color);
+            font-family: inherit; box-sizing: border-box; text-transform: uppercase;
+            font-size: 1rem; text-shadow: 0 0 5px rgba(51, 255, 51, 0.6); outline: none;
+        }
+
+        input[type="text"]:focus {
+            background-color: var(--primary-dim); color: #000; text-shadow: none;
+        }
+
+        button {
+            background-color: #000; border: 2px solid var(--primary-color);
+            color: var(--primary-color); padding: 12px 24px; font-family: inherit;
+            font-weight: bold; cursor: pointer; text-transform: uppercase;
+            margin-top: 15px; font-size: 1rem; text-shadow: 0 0 5px rgba(51, 255, 51, 0.6);
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--primary-color); color: #000; text-shadow: none;
+        }
+
+        button:disabled {
+            cursor: not-allowed; opacity: 0.4; border-color: var(--primary-dim);
+            color: var(--primary-dim); text-shadow: none;
+        }
+
+        .options-grid {
+            display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 20px;
+        }
+
+        .option-btn {
+            text-align: left; padding: 15px; border: 1px dashed var(--primary-dim); line-height: 1.4;
+        }
+
+        .option-btn::before { content: "> "; opacity: 0; }
+        .option-btn:hover:not(:disabled)::before { opacity: 1; }
+
+        .option-btn.correct {
+            background-color: var(--primary-color); border-color: var(--primary-color);
+            color: #000; text-shadow: none;
+        }
+
+        .option-btn.incorrect {
+            background-color: var(--danger-color); border-color: var(--danger-color);
+            color: #000; text-shadow: none;
+        }
+
+        .progress-indicator {
+            font-size: 0.9rem; margin-bottom: 15px; text-align: right;
+            border-bottom: 1px solid var(--primary-dim); padding-bottom: 5px;
+        }
+
+        .feedback-container {
+            display: none; margin-top: 20px; padding: 15px;
+            border: 1px solid var(--primary-color); background-color: rgba(51, 255, 51, 0.1);
+        }
+
+        .feedback-container.active {
+            display: block; animation: terminalBoot 0.2s ease-out;
+        }
+
+        /* Reporte Final */
+        #report-screen {
+            background-color: #fff; color: #000; padding: 40px;
+            font-family: 'Times New Roman', Times, serif; text-shadow: none;
+        }
+
+        .report-header {
+            text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px;
+        }
+
+        .report-header h2 { color: #000; margin: 0; font-size: 1.5rem; border: none; text-shadow: none; }
+        .report-header p { margin: 5px 0 0 0; font-size: 1rem; color: #000; }
+        .report-body { margin-bottom: 30px; }
+        .report-history { margin-top: 30px; font-size: 0.9rem; }
+        .history-item { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #ddd; }
+        .history-item p { margin: 3px 0; color: #000; }
+        
+        .text-correct { color: green; font-weight: bold; }
+        .text-incorrect { color: red; font-weight: bold; }
+
+        .seal {
+            border: 3px double #000; width: 120px; height: 120px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; text-align: center;
+            font-size: 0.7rem; font-weight: bold; margin: 30px auto; text-transform: uppercase;
+            transform: rotate(-10deg); color: #8b0000; border-color: #8b0000;
+        }
+
+        .signature { text-align: center; margin-top: 50px; }
+        .signature-line { width: 250px; border-top: 1px solid #000; margin: 0 auto 10px auto; }
+        .actions { text-align: center; margin-top: 30px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .actions button { border-color: #000; color: #000; background: #fff; text-shadow:none; }
+        .actions button:hover { background-color: #000; color: #fff; }
+
+        @media print {
+            body::before { display: none; }
+            body { background-color: #fff; color: #000; padding: 0; margin: 0; text-shadow: none; }
+            .container { border: none; box-shadow: none; width: 100%; max-width: 100%; background: #fff;}
+            .header, .actions, #intro-screen, #quiz-screen { display: none !important; }
+            #report-screen { display: block !important; padding: 0; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="main-container">
+    <div class="header" id="app-header">
+        <h1>SYS.DEF. US-CONTRACTOR v4.2</h1>
+        <div class="status-bar">
+            <div>OP: <span id="op-name-display">NO IDENTIFICADO</span></div>
+            <div>ESTAB. GEOPOLÍTICA: <span id="stability-text">100%</span></div>
+            <div class="meter-container">
+                <div id="stability-fill" class="meter-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <div id="intro-screen" class="screen active">
+            <h2>RED PRIVADA DE ANÁLISIS MACROECONÓMICO</h2>
+            <p>CONEXIÓN SEGURA ESTABLECIDA...</p>
+            <p>Atención Analista. Usted opera bajo la red de una firma corporativa privada contratada por el Departamento de Estado de los EE. UU. Nuestra empresa provee inteligencia económica y gestión de crisis para evaluar la viabilidad de naciones en zonas de alta volatilidad.</p>
+            <p><strong>PARÁMETROS DEL CONTRATO OPERATIVO:</strong><br>
+            > Procese los informes de inteligencia económica recabados por nuestros satélites. (Datos aleatorizados por protocolo de seguridad).<br>
+            > Las entradas analíticas erróneas degradarán la "Estabilidad Geopolítica" del país evaluado.<br>
+            > Llegar al 0% de estabilidad resultará en el colapso de la región y la recisión inmediata de nuestro contrato gubernamental.<br>
+            > Se expedirá un documento oficial de auditoría académica al concluir el turno.</p>
+            
+            <div class="input-group">
+                <label for="analyst-name" class="cursor">INGRESE CREDENCIAL DE ANALISTA PRIVADO:</label>
+                <input type="text" id="analyst-name" placeholder="IDENTIFICACION REQUERIDA" required>
+            </div>
+            <button onclick="startSimulation()">AUTENTICAR Y CONECTAR</button>
+        </div>
+
+        <div id="quiz-screen" class="screen">
+            <div class="progress-indicator">DATOS ENCRIPTADOS: INFORME <span id="current-q">1</span> DE 10</div>
+            <h2 id="question-text">PROCESANDO...</h2>
+            <p id="question-context" style="color: var(--primary-dim);"></p>
+            <div class="options-grid" id="options-container"></div>
+            <div id="feedback-section" class="feedback-container">
+                <p id="feedback-text"></p>
+                <button onclick="nextQuestion()" id="next-btn">EVALUAR SIGUIENTE INFORME</button>
+            </div>
+        </div>
+
+        <div id="report-screen" class="screen">
+            <div class="report-header">
+                <h2>UNIVERSIDAD DE AMÉRICA LATINA</h2>
+                <p>Dirección Académica - Expediente de Evaluación Continua</p>
+                <p>Documento Oficial de Simulación de Negocios Internacionales</p>
+            </div>
+            
+            <div class="report-body">
+                <p><strong>A quien corresponda:</strong></p>
+                <p>Por medio de la presente se certifica que el analista <strong><span id="cert-name">[NOMBRE]</span></strong> ha completado la evaluación de riesgo macroeconómico en la terminal de situación de contratista privado.</p>
+                <p><strong>Resultados de la Auditoría Geopolítica:</strong></p>
+                <ul>
+                    <li>Informes Procesados Correctamente: <span id="cert-score">0</span> / 10</li>
+                    <li>Estabilidad Geopolítica Final Conservada: <span id="cert-stability">0</span>%</li>
+                    <li>Estatus del Contrato Gubernamental: <strong><span id="cert-status">Aprobado</span></strong></li>
+                </ul>
+            </div>
+
+            <h3 style="color: #000; border-bottom: 1px solid #ccc;">Desglose Analítico de la Misión</h3>
+            <div id="report-history-container" class="report-history"></div>
+
+            <div class="seal">
+                UDAL<br>Dirección<br>Académica<br>Validado
+            </div>
+
+            <div class="signature">
+                <div class="signature-line"></div>
+                <strong>Dr. Julio C. G. Quintero</strong><br>
+                Director Académico
+            </div>
+
+            <div class="actions" id="report-actions">
+                <button onclick="window.print()">DESCARGAR AUDITORÍA (PDF)</button>
+                <button onclick="sendWhatsApp()">ENVIAR RESULTADOS POR WHATSAPP</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const rawQuestions = [
+        {
+            context: "INTELIGENCIA: Producción anual del Sector 4: 2,000 barriles de crudo a $60 c/u; 4,000 alfombras a $20 c/u; y 3 reactores a $150,000 c/u.",
+            text: "Método Tradicional o de Producción: ¿Cuál es el Producto Interno Bruto (PIB) calculado mediante este método?",
+            options: [
+                { text: "$650,000", isCorrect: true },
+                { text: "$530,000", isCorrect: false }, 
+                { text: "$850,000", isCorrect: false }  
+            ],
+            explanation: "Cálculo verificado: (2,000 x $60) + (4,000 x $20) + (3 x $150,000) = $120,000 + $80,000 + $450,000 = $650,000."
+        },
+        {
+            context: "INTELIGENCIA: Registros fiscales del trimestre: Salarios = $320,000; Intereses del capital = $80,000; Alquileres = $60,000; Ganancias empresariales = $140,000.",
+            text: "Método de la Renta: Al sumar estos factores de ingresos, ¿cuál es el PIB resultante?",
+            options: [
+                { text: "$600,000", isCorrect: true },
+                { text: "$540,000", isCorrect: false }, 
+                { text: "$460,000", isCorrect: false }  
+            ],
+            explanation: "El Método de la Renta suma todas las remuneraciones sin exclusión: 320k + 80k + 60k + 140k = $600,000."
+        },
+        {
+            context: "INTELIGENCIA: Reportes de consumo global: Consumo (C) = $250,000; Inversión (I) = $150,000; Gasto Público (G) = $180,000; Exportaciones (X) = $100,000; Importaciones (M) = $130,000.",
+            text: "Método del Gasto: Utilizando la fórmula macroeconómica, calcule el PIB.",
+            options: [
+                { text: "$550,000", isCorrect: true },
+                { text: "$810,000", isCorrect: false }, 
+                { text: "$680,000", isCorrect: false }  
+            ],
+            explanation: "Fórmula del gasto (C + I + G + X - M): 250k + 150k + 180k + 100k - 130k = $550,000."
+        },
+        {
+            context: "INTELIGENCIA: Cadena de litio simplificada: La extracción aporta $40,000. La refinación compra ese mineral y lo vende procesado en $90,000. La comercialización vende las baterías finales al público en $160,000.",
+            text: "Método del Valor Agregado: Omitiendo el valor de la extracción primaria por normativa del ejercicio, ¿cuánto suma esta industria al PIB total mediante sus fases de transformación y venta?",
+            options: [
+                { text: "$120,000", isCorrect: true },
+                { text: "$160,000", isCorrect: false }, 
+                { text: "$290,000", isCorrect: false }  
+            ],
+            explanation: "Valor agregado excluyendo extracción: Refinación ($90k - $40k = $50k) + Comercialización ($160k - $90k = $70k). Total validado = $120,000."
+        },
+        {
+            context: "INTELIGENCIA: Análisis interanual. El PIB Nominal calculado a precios de este año es de $750,000. El PIB Real (ajustado a precios del año base) es de $600,000.",
+            text: "Deflactor del PIB (Base 1): Calcule el deflactor de este año utilizando la proporción entre ambos indicadores.",
+            options: [
+                { text: "1.25", isCorrect: true },
+                { text: "0.80", isCorrect: false }, 
+                { text: "1.15", isCorrect: false }  
+            ],
+            explanation: "Cálculo en Base 1: (PIB Nominal / PIB Real) -> $750,000 / $600,000 = 1.25. Esto indica un nivel de precios de 1.25 en relación al año histórico (que por definición es 1)."
+        },
+        {
+            context: "INTELIGENCIA: Reportes del Banco Central establecen nuestro año histórico (base) con un Deflactor de 1. El Deflactor actualizado del año en curso se sitúa en 1.18.",
+            text: "Tasa de Inflación (Vía Deflactor): Partiendo de la base histórica 1, ¿cuál es el porcentaje exacto de inflación para este periodo?",
+            options: [
+                { text: "18%", isCorrect: true },
+                { text: "1.18%", isCorrect: false }, 
+                { text: "8%", isCorrect: false } 
+            ],
+            explanation: "Al tener el año histórico en base 1, la variación se obtiene de forma directa: ((1.18 - 1) / 1) = 0.18. Esto equivale a una inflación real del 18%."
+        },
+        {
+            context: "INTELIGENCIA: Monitoreo de supervivencia. Una canasta de bienes básicos costaba $800 en el año base. Hoy, la misma canasta cuesta $920.",
+            text: "Índice de Precios al Consumidor (IPC en Base 1): Calcule el IPC actual.",
+            options: [
+                { text: "1.15", isCorrect: true },
+                { text: "0.86", isCorrect: false }, 
+                { text: "1.12", isCorrect: false }  
+            ],
+            explanation: "El IPC con base 1 se obtiene dividiendo el costo actual entre el costo base: $920 / $800 = 1.15."
+        },
+        {
+            context: "INTELIGENCIA: Proyecciones a futuro. El costo actual de la canasta comercial es de $920. Los algoritmos predictivos prevén una inflación constante del 8% para el próximo ciclo anual.",
+            text: "Previsión de Precios: ¿Cuál será el costo proyectado de esta canasta básica el próximo año?",
+            options: [
+                { text: "$993.60", isCorrect: true },
+                { text: "$928.00", isCorrect: false }, 
+                { text: "$1,000.00", isCorrect: false } 
+            ],
+            explanation: "El cálculo aplica el aumento porcentual directamente: $920 * 1.08 = $993.60."
+        },
+        {
+            context: "INTELIGENCIA: El reporte indica que la inflación general de la zona fue del 15%. Sin embargo, la maquinaria importada pasó de $2,000 a $2,200 (un aumento nominal del 10%).",
+            text: "Análisis de Precio Real: En relación a la inflación general de la economía, ¿qué sucedió con esta maquinaria?",
+            options: [
+                { text: "Se abarató en términos reales.", isCorrect: true },
+                { text: "Se encareció en términos reales.", isCorrect: false }, 
+                { text: "Mantuvo su valor real de compra intacto.", isCorrect: false } 
+            ],
+            explanation: "Aunque su precio numérico subió un 10%, el incremento fue inferior a la inflación general del 15%, por lo que en términos de poder adquisitivo real, la maquinaria se abarató."
+        },
+        {
+            context: "ALERTA DIPLOMÁTICA: El PIB del territorio asignado es de $500,000 y cuenta con 200 habitantes (PIB per cápita = $2,500). Una facción radical del régimen local sugiere deportar forzosamente a 100 ciudadanos de clase baja sin registrar la pérdida de sus activos para que el indicador estadístico suba a $5,000.",
+            text: "Decisión Estratégica: Como analista en jefe de la firma contratista, ¿qué directriz emite para el informe del Departamento de Estado?",
+            options: [
+                { text: "Rechazar la propuesta y emitir alerta. El desarrollo económico requiere inversión productiva real, no la manipulación estadística mediante violaciones a los derechos humanos.", isCorrect: true },
+                { text: "Aprobar y ocultar la deportación. Estadísticamente mejorará la calificación crediticia soberana mostrando un PIB per cápita superior para nuestros inversionistas.", isCorrect: false },
+                { text: "Omitir a la población marginada del censo oficial entregado a nuestros analistas para inflar el indicador de forma contable sin ensuciar la operación.", isCorrect: false }
+            ],
+            explanation: "La ética corporativa de inteligencia dicta que los indicadores macroeconómicos deben reflejar condiciones reales de vida mediante la producción, denunciando fraudes y purgas estadísticas."
+        }
+    ];
+
+    function shuffleArray(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex !== 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    let activeQuestions = JSON.parse(JSON.stringify(rawQuestions));
+    shuffleArray(activeQuestions);
+    activeQuestions.forEach(q => shuffleArray(q.options));
+
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let stability = 100;
+    let analystName = "";
+    let userHistory = [];
+
+    function startSimulation() {
+        const nameInput = document.getElementById("analyst-name").value.trim();
+        if (nameInput === "") {
+            alert("ERROR: IDENTIFICADOR REQUERIDO PARA INICIAR CONEXIÓN.");
+            return;
+        }
+        analystName = nameInput;
+        document.getElementById("op-name-display").textContent = analystName.substring(0, 15) + (analystName.length > 15 ? '...' : '');
+        
+        document.getElementById("intro-screen").classList.remove("active");
+        document.getElementById("quiz-screen").classList.add("active");
+        
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        const q = activeQuestions[currentQuestionIndex];
+        document.getElementById("current-q").textContent = currentQuestionIndex + 1;
+        document.getElementById("question-context").textContent = q.context;
+        document.getElementById("question-text").textContent = "> " + q.text;
+        document.getElementById("feedback-section").classList.remove("active");
+        
+        const optionsContainer = document.getElementById("options-container");
+        optionsContainer.innerHTML = "";
+        
+        q.options.forEach((opt, index) => {
+            const btn = document.createElement("button");
+            btn.className = "option-btn";
+            btn.textContent = opt.text;
+            btn.id = "btn-" + index;
+            btn.onclick = () => handleAnswer(index, opt.isCorrect, opt.text);
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    function handleAnswer(selectedIndex, isCorrect, selectedText) {
+        const q = activeQuestions[currentQuestionIndex];
+        const buttons = document.querySelectorAll(".option-btn");
+        
+        buttons.forEach(btn => btn.disabled = true);
+        
+        if (isCorrect) {
+            document.getElementById("btn-" + selectedIndex).classList.add("correct");
+            score++;
+        } else {
+            document.getElementById("btn-" + selectedIndex).classList.add("incorrect");
+            stability -= 15;
+            if(stability < 0) stability = 0;
+            updateStabilityMeter();
+            
+            q.options.forEach((opt, idx) => {
+                if(opt.isCorrect) {
+                    document.getElementById("btn-" + idx).classList.add("correct");
+                }
+            });
+        }
+
+        userHistory.push({
+            pregunta: q.text,
+            respuestaUsuario: selectedText,
+            esCorrecta: isCorrect,
+            explicacion: q.explanation
+        });
+
+        const feedbackSec = document.getElementById("feedback-section");
+        const feedbackText = document.getElementById("feedback-text");
+        
+        if(isCorrect) {
+            feedbackSec.style.borderLeftColor = "var(--success-color)";
+            feedbackSec.style.backgroundColor = "rgba(51, 255, 51, 0.1)";
+            feedbackText.innerHTML = `<strong>> ANÁLISIS CONFIRMADO.</strong><br>> ${q.explanation}`;
+        } else {
+            feedbackSec.style.borderLeftColor = "var(--danger-color)";
+            feedbackSec.style.backgroundColor = "rgba(255, 51, 51, 0.1)";
+            feedbackText.innerHTML = `<strong>> ALERTA DE ERROR. ESTABILIDAD DEGRADADA.</strong><br>> ${q.explanation}`;
+        }
+        
+        feedbackSec.classList.add("active");
+
+        if (stability === 0) {
+            document.getElementById("next-btn").textContent = "VER REPORTE DE COLAPSO REGIONAL";
+        } else if (currentQuestionIndex === activeQuestions.length - 1) {
+            document.getElementById("next-btn").textContent = "CERRAR SESIÓN Y GENERAR REPORTE";
+        } else {
+            document.getElementById("next-btn").textContent = "EVALUAR SIGUIENTE INFORME";
+        }
+    }
+
+    function nextQuestion() {
+        if (stability === 0) {
+            showReport("CONTRATO RESCINDIDO - COLAPSO REGIONAL INMINENTE");
+            return;
+        }
+
+        currentQuestionIndex++;
+        if (currentQuestionIndex < activeQuestions.length) {
+            loadQuestion();
+        } else {
+            showReport(score >= 8 ? "RENOVACIÓN DE CONTRATO - ANÁLISIS DE EXCELENCIA" : "EVALUACIÓN COMPLETADA - PRECISIÓN DEFICIENTE");
+        }
+    }
+
+    function updateStabilityMeter() {
+        const fill = document.getElementById("stability-fill");
+        const text = document.getElementById("stability-text");
+        
+        fill.style.width = stability + "%";
+        text.textContent = stability + "%";
+        
+        if (stability <= 40) {
+            fill.style.backgroundColor = "var(--danger-color)";
+            text.style.color = "var(--danger-color)";
+        } else if (stability <= 70) {
+            fill.style.backgroundColor = "#ffcc00"; 
+            text.style.color = "#ffcc00";
+        }
+    }
+
+    function showReport(statusText) {
+        document.getElementById("quiz-screen").classList.remove("active");
+        document.getElementById("report-screen").classList.add("active");
+        document.getElementById("app-header").style.display = "none";
+        
+        document.getElementById("cert-name").textContent = analystName;
+        document.getElementById("cert-score").textContent = score;
+        document.getElementById("cert-stability").textContent = stability;
+        document.getElementById("cert-status").textContent = statusText;
+        
+        if(stability <= 40) {
+            document.getElementById("cert-status").style.color = "red";
+        }
+
+        const historyContainer = document.getElementById("report-history-container");
+        historyContainer.innerHTML = ""; 
+        userHistory.forEach((item, index) => {
+            const div = document.createElement("div");
+            div.className = "history-item";
+            const statusClass = item.esCorrecta ? "text-correct" : "text-incorrect";
+            const statusLabel = item.esCorrecta ? "Operación Exitosa" : "Fallo Analítico";
+            
+            div.innerHTML = `
+                <p style="color:#000;"><strong>Reactivo ${index + 1}:</strong> ${item.pregunta}</p>
+                <p style="color:#000;"><strong>Registro de Analista:</strong> ${item.respuestaUsuario} <span class="${statusClass}">[${statusLabel}]</span></p>
+                <p style="color:#000;"><em>Fundamento:</em> ${item.explicacion}</p>
+            `;
+            historyContainer.appendChild(div);
+        });
+    }
+
+    function sendWhatsApp() {
+        const phone = "522221158614";
+        const statusText = document.getElementById("cert-status").textContent;
+        const mensaje = `*Auditoría Macroeconómica - US-CONTRACTOR v4.2*\n\n` + 
+                        `Analista: ${analystName}\n` +
+                        `Puntuación: ${score}/10\n` +
+                        `Estabilidad Final: ${stability}%\n` +
+                        `Estatus de Contrato: ${statusText}`;
+        
+        const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(mensaje)}`;
+        window.open(url, '_blank');
+    }
+</script>
+
+</body>
+</html>
